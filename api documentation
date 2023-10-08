@@ -1,0 +1,197 @@
+所需模块：
+import urllib.parse
+import json
+from decimal import Decimal
+from requests import Session
+from steampy.confirmation import ConfirmationExecutor
+from steampy.exceptions import ApiException, TooManyRequests, LoginRequired
+from steampy.models import Currency, SteamUrl, GameOptions
+from steampy.utils import text_between, get_listing_id_to_assets_address_from_html, get_market_listings_from_html, \
+    merge_items_with_descriptions_from_listing, get_market_sell_listings_from_api, login_required
+
+
+
+###获得物品信息
+url : SteamUrl.COMMUNITY_URL + '/market/priceoverview/'   (请求方式:GET)
+
+发送参数:
+item_hash_name: str: 物品的哈希名称，用于唯一标识要查询的物品。
+appid: int : 玩家ID。
+currency: str : 货币类型的字符串表示，默认为美元。
+country: str : 国家/地区代码的字符串表示，默认为波兰（'PL'）
+
+成功响应:
+response = self._session.get(url, params=params)
+(格式:json)
+
+失败响应: response.status_code = 429   (如果服务器返回的HTTP状态码是429，表示请求失败，失败原因：请求太频繁,需要降低请求频率)
+
+
+
+
+###获取物品价格历史数据
+url : SteamUrl.COMMUNITY_URL + '/market/pricehistory/'   (请求方式:GET)
+
+发送参数:
+'country': str   表示请求的国家(国家代码)
+'appid': str   玩家ID
+'market_hash_name': str  表示要查询价格历史的物品的哈希名，这个值是作为函数的参数传入的
+
+成功响应:
+response = self._session.get(url, params=params)
+(格式:json)
+
+失败响应: response.status_code = 429   (如果服务器返回的HTTP状态码是429，表示请求失败，失败原因：请求太频繁,需要降低请求频率)
+
+
+
+
+#获取‘我’拥有的物品的相关信息，包括列表、描述和出售信息
+url :"%s/market" % SteamUrl.COMMUNITY_URL
+
+获取响应: response = self._session.get("%s/market" % SteamUrl.COMMUNITY_URL)
+
+响应成功: response.status_code = 200
+   调用 get_listing_id_to_assets_address_from_html() 方法，从响应文本中获取列表中物品的资产地址信息。
+   调用 get_market_listings_from_html() 方法，从响应文本中获取市场上的物品列表。
+   调用 merge_items_with_descriptions_from_listing() 方法，将物品的描述信息、资产地址信息与市场列表中的物品进行合并，以创建一个完整的物品列表。这个列表通常包含了物品的详细信息。
+
+   检查响应文本中是否包含特定标记 '<span id="tabContentsMyActiveMarketListings_end">'，如果存在，则表示用户有更多的物品列表需要获取。
+   如果 n_showing 小于 n_total 且 n_total 小于 1000，表示还有更多物品需要获取，进入下一步:
+       发送获取更多物品信息的请求的url : "%s/market/mylistings/render/?query=&start=%s&count=%s" % (SteamUrl.COMMUNITY_URL, n_showing, -1)
+       如果 HTTP状态码200表示请求成功:
+           更新物品列表，将新获取的物品与之前的列表合并。这通常包括了用户出售的物品。
+       否则 表示获取列表操作失败:
+           代码会引发一个自定义的 ApiException 异常，提供相应的错误消息。
+   如果用户的物品总数超过1000（n_total 大于等于 1000），则需要多次请求获取全部的物品列表。循环执行以下步骤：
+      构建一个新的用于获取更多物品的请求的 url : "%s/market/mylistings/?query=&start=%s&count=%s" % (SteamUrl.COMMUNITY_URL, n_showing + i, 100)
+      发送 HTTP GET 请求，获取更多的物品列表。
+      解析响应的 JSON 数据，包含了更多的物品信息。
+      更新物品列表，将新获取的物品与之前的列表合并。
+最后，返回包含用户物品列表的字典对象。
+
+
+
+
+
+
+###请求卖出物品
+url : SteamUrl.COMMUNITY_URL + "/market/sellitem/"     (请求方式:POST)
+
+发送参数:
+assetid（字符串）：表示要出售的物品的资产ID。
+game（GameOptions对象）：包含有关游戏选项的信息，如上下文ID（contextid）和应用程序ID（appid）。
+money_to_receive（字符串）：表示您希望获得的价格。
+
+创建字典，将信息打包：
+data = {
+            "assetid": assetid,
+            "sessionid": self._session_id,
+            "contextid": game.context_id,
+            "appid": game.app_id,
+            "amount": 1,
+            "price": money_to_receive}
+
+请求头:  headers = {'Referer': "%s/profiles/%s/inventory" % (SteamUrl.COMMUNITY_URL, self._steam_guard['steamid'])}
+获取响应:   response = self._session.post(SteamUrl.COMMUNITY_URL + "/market/sellitem/", data, headers=headers).json()
+
+响应信息:
+   查看是否有待确认的订单: has_pending_confirmation = 'pending confirmation' in response.get('message', '')
+      如果响应中包含 "needs_mobile_confirmation" 或者成功创建订单的标志 success 为 False ，则存在待确认订单。
+      否则，如果没有待确认订单，函数直接返回响应内容 response，该内容通常包含了出售订单的结果信息。
+
+
+
+###创建购买订单:
+
+url : SteamUrl.COMMUNITY_URL + "/market/buylisting/"
+
+发送参数:
+market_name（字符串）：表示要购买的物品的市场名称。
+price_single_item（字符串）：表示每个物品的价格。
+quantity（整数）：表示要购买的物品数量。
+game（GameOptions对象）：包含有关游戏选项的信息，这里需要玩家ID（appid）。
+currency（Currency枚举，默认为美元）：表示货币类型。
+
+创建字典，将信息打包:
+data = {
+          "sessionid": self._session_id,
+          "currency": currency.value,
+          "subtotal" : price - fee,
+          "fee" : fee,
+          "total" : price,
+          "quantity": '1'}
+
+请求头: headers = {'Referer': "%s/market/listings/%s/%s" % (SteamUrl.COMMUNITY_URL, game.app_id, urllib.parse.quote(market_name))}
+获取响应: response = self._session.post(SteamUrl.COMMUNITY_URL + "/market/buylisting/" + market_id, data, headers=headers).json()
+
+成功响应:  response["wallet_info"]["success"] = 1
+
+
+###请求买入物品:
+
+url:SteamUrl.COMMUNITY_URL + "/market/buylisting/" + market_id
+
+发送参数:
+market_name（字符串）：表示要购买的物品的市场名称。
+market_id（字符串）：表示要购买的物品的市场ID。
+price（整数）：表示物品的价格。
+fee（整数）：表示交易费用。
+game（GameOptions对象）：包含有关游戏选项的信息，这里需要玩家ID(appid)。
+currency（Currency枚举，默认为美元）：表示货币类型
+
+创建字典，将信息打包:
+data = {
+            "sessionid": self._session_id,
+            "currency": currency.value,
+            "subtotal" : price - fee,
+            "fee" : fee,
+            "total" : price,
+            "quantity": '1'}
+
+请求头:headers = {'Referer': "%s/market/listings/%s/%s" % (SteamUrl.COMMUNITY_URL, game.app_id,urllib.parse.quote(market_name))}
+获取响应:response = self._session.post(SteamUrl.COMMUNITY_URL + "/market/buylisting/" + market_id, data, headers=headers).json()
+
+成功响应:  response["wallet_info"]["success"] = 1:
+
+
+
+
+###取消出售订单
+url : "%s/market/removelisting/%s" % (SteamUrl.COMMUNITY_URL, sell_listing_id)
+
+发送参数:
+sell_listing_id（字符串）：表示要取消的出售订单的唯一标识符。
+
+创建字典，将信息打包:
+data = {"sessionid": self._session_id}
+
+请求头: headers = {'Referer': SteamUrl.COMMUNITY_URL + "/market/"}
+获取响应: response = self._session.post(url, data=data, headers=headers)
+
+成功响应:response.status_code = 200
+
+
+
+###取消买入订单
+
+url :SteamUrl.COMMUNITY_URL + "/market/cancelbuyorder/"
+
+发送参数:
+buy_order_id（字符串）：表示要取消的购买订单的唯一标识符。
+
+创建字典，将信息打包:
+data = {
+            "sessionid": self._session_id,
+            "buy_orderid": buy_order_id}
+
+请求头: headers = {"Referer": SteamUrl.COMMUNITY_URL + "/market"}
+获取响应: response = self._session.post(SteamUrl.COMMUNITY_URL + "/market/cancelbuyorder/", data, headers=headers).json()
+
+成功响应: response.get("success") = 1
+
+
+
+
+
+

@@ -1,0 +1,2 @@
+每个人写white paper 自己负责的部分，以word格式提交
+尽量包含uml graph

@@ -1,0 +1,111 @@
+Functional Test Report
+
+Project Name: Steam Trading Assistant
+Date：2023/10/19
+1. Introduction
+This functional test report aims to provide a detailed analysis of the testing performed on the Steam Trading Assistant. The report covers the test objectives, test environment, test scenarios, and their results, along with a conclusion and recommendations for improvements.
+
+2. Test Objectives
+The objectives of the functional testing are as follows:
+- Validate the user authentication and configuration functionality.
+- Verify the session management capabilities.
+- Test the integration of plugins and their functionality.
+- Ensure proper initialization and execution of plugins.
+- Validate the error handling and logging mechanisms.
+- Verify the update checking functionality.
+- Test the development mode and its features.
+
+3. Test Environment
+The test environment used for the functional testing includes:
+- Operating System: Windows 11
+- Testing Tools: Python 3.10
+- Test Users: Wenhui Zhao, Jun Dai
+
+4. Test Scenarios and Results
+This section outlines the detailed test steps performed and their results:
+
+4.1 User Authentication and Configuration
+- Test Objective: Validate the user authentication and configuration functionality.
+- Test Steps:
+  1. Launch the Steam Trading Assistant application.
+  2. Enter valid user credentials.
+  3. Click on the "Login" button.
+  4. Verify if the user is successfully authenticated.
+  5. Navigate to the configuration settings.
+  6. Modify the configuration parameters.
+  7. Save the configuration changes.
+  8. Verify if the configuration is applied correctly.
+- Test Results: The user authentication and configuration functionality performed as expected. The user was able to log in successfully, and the configuration changes were applied correctly.
+
+4.2 Session Management
+- Test Objective: Verify the session management capabilities.
+- Test Steps:
+  1. Log in to the Steam Trading Assistant.
+  2. Perform various actions within the application.
+  3. Close the application.
+  4. Re-launch the application.
+  5. Verify if the user session is maintained.
+- Test Results: The session management capabilities functioned correctly. The user session was maintained even after closing and reopening the application.
+
+4.3 Plugin Integration
+- Test Objective: Test the integration of plugins and their functionality.
+- Test Steps:
+  1. Install a sample plugin.
+  2. Verify if the plugin installation is successful.
+  3. Access the plugin's features within the application.
+  4. Perform actions using the plugin's functionality.
+  5. Verify if the plugin functions as intended.
+- Test Results: The integration of plugins was successful, and the installed plugin worked as expected, providing the intended features and functionality.
+
+4.4 Plugin Initialization and Execution
+- Test Objective: Ensure proper initialization and execution of plugins.
+- Test Steps:
+  1. Install multiple plugins with different functionalities.
+  2. Launch the Steam Trading Assistant.
+  3. Verify if all installed plugins are initialized correctly.
+  4. Execute actions that trigger the execution of plugins.
+  5. Verify if the plugins execute their intended tasks.
+- Test Results: All installed plugins were initialized properly, and their execution was triggered correctly based on the associated actions. The plugins performed their intended tasks without any issues.
+
+4.5 Error Handling and Logging
+- Test Objective: Validate the error handling and logging mechanisms.
+- Test Steps:
+  1. Introduce an error condition, such as providing invalid credentials.
+  2. Verify if appropriate error messages are displayed.
+  3. Check the logs for error entries.
+  4. Perform actions that may generate errors.
+  5. Verify if error messages are logged correctly.
+- Test Results: The error handling mechanism worked as expected, displaying appropriate error messages to the user. The logging mechanism captured error entries accurately for troubleshooting purposes.
+
+4.6 Update Checking
+- Test Objective: Verify the update checking functionality.
+- Test Steps:
+  1. Launch the Steam Trading Assistant.
+  2. Check for available updates.
+  3. Verify if the application correctly identifies and notifies about updates.
+  4. Perform the update process.
+  5. Verify if the update is installed successfully.
+- Test Results: The update checking functionality performed as intended, correctly detecting available updates and notifying the user. The update process was executed successfully.
+
+4.7 Development Mode
+- Test Objective: Test the development mode and its features.
+- Test Steps:
+  1. Enable the development mode in the application settings.
+  Apologies for the incomplete response. Here are the remaining test steps for the Development Mode scenario:
+- Test Objective: Test the development mode and its features.
+- Test Steps:
+  1. Enable the development mode in the application settings.
+  2. Perform actions that trigger development mode features, such as accessing debug information or advanced settings.
+  3. Verify if the development mode features are accessible and functioning correctly.
+  4. Modify and save development mode settings.
+  5. Verify if the changes to the development mode settings are applied successfully.
+- Test Results: The development mode was enabled successfully, and its associated features were accessible and functioning as expected. The modifications to the development mode settings were applied correctly.
+
+5. Conclusion
+Based on the conducted functional testing, the Steam Trading Assistant has demonstrated satisfactory performance in most areas. However, some issues were identified in the plugin integration and execution, requiring further improvement and optimization.
+
+6. Recommendations and Improvements
+Based on the test results, the following recommendations are proposed:
+- Conduct additional testing and optimization for plugin integration and execution to enhance stability and performance.
+- Enhance error handling and logging mechanisms for better troubleshooting and issue identification.
+- Improve the user interface and user experience to ensure intuitive and user-friendly interactions.

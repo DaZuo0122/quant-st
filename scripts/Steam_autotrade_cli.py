@@ -25,10 +25,7 @@ from utils.static import (
     DEFAULT_CONFIG_JSON,
     set_no_pause,
 )
-from plugins.BuffAutoAcceptOffer import BuffAutoAcceptOffer
-from plugins.BuffAutoOnSale import BuffAutoOnSale
 from plugins.SteamAutoAcceptOffer import SteamAutoAcceptOffer
-from plugins.UUAutoAcceptOffer import UUAutoAcceptOffer
 from steampy.client import SteamClient
 from steampy.exceptions import ApiException, CaptchaRequired, InvalidCredentials
 from steampy.utils import ping_proxy
@@ -40,7 +37,14 @@ def set_exit_code(code):
     global exit_code
     exit_code = code
 
-
+def handle_global_exception(exc_type, exc_value, exc_traceback):
+    logger.exception(
+        "Error occurred,please report",
+        exc_info=(exc_type, exc_value, exc_traceback),
+    )
+    logger.error("The program is about to exit due to a error")
+    pause()
+    
 def get_api_key(steam_client):
     resp = steam_client._session.get("https://steamcommunity.com/dev/apikey")
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -146,26 +150,50 @@ def login_to_steam():
     steam_client.steam_guard["steamid"] = str(get_steam_64_id_from_steam_community(steam_client))
     return steam_client
 
+def init_files_and_params() -> int:
+    global config
+    development_mode = False
+    logger.info("Initializing...")
+    first_run = False
+    if not os.path.exists(CONFIG_FOLDER):
+        os.mkdir(CONFIG_FOLDER)
+    if not os.path.exists(CONFIG_FILE_PATH):
+        with open(CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
+            f.write(DEFAULT_CONFIG_JSON)
+        logger.info("First run detected, generated" + CONFIG_FILE_PATH + ", fill in the config according to README! ")
+        first_run = True
+    else:
+        with open(CONFIG_FILE_PATH, "r", encoding=get_encoding(CONFIG_FILE_PATH)) as f:
+            try:
+                config = json.load(f)
+            except (json.Json5DecoderException, json.Json5IllegalCharacter) as e:
+                handle_caught_exception(e)
+                logger.error("Detect" + CONFIG_FILE_PATH + "format error, please check whether the config is correct! ")
+                return 0
+    if not os.path.exists(STEAM_ACCOUNT_INFO_FILE_PATH):
+        with open(STEAM_ACCOUNT_INFO_FILE_PATH, "w", encoding="utf-8") as f:
+            f.write(DEFAULT_STEAM_ACCOUNT_JSON)
+            logger.info("First run detected, generated" + STEAM_ACCOUNT_INFO_FILE_PATH + ", fill in the config according to README! ")
+            first_run = True
+
+    if not first_run:
+        if "no_pause" in config:
+            set_no_pause(config["no_pause"])
+        if "development_mode" not in config:
+            config["development_mode"] = False
+        if "steam_login_ignore_ssl_error" not in config:
+            config["steam_login_ignore_ssl_error"] = False
+        if "steam_local_accelerate" not in config:
+            config["steam_local_accelerate"] = False
+        if "development_mode" in config and config["development_mode"]:
+            development_mode = True
+        if development_mode:
+            logger.info("Development mode is on")
+
+
 def get_plugins_enabled(steam_client, steam_client_mutex):
     global config
     plugins_enabled = []
-    if (
-        "buff_auto_accept_offer" in config
-        and "enable" in config["buff_auto_accept_offer"]
-        and config["buff_auto_accept_offer"]["enable"]
-    ):
-        buff_auto_accept_offer = BuffAutoAcceptOffer(logger, steam_client, steam_client_mutex, config)
-        plugins_enabled.append(buff_auto_accept_offer)
-    if "buff_auto_on_sale" in config and "enable" in config["buff_auto_on_sale"] and config["buff_auto_on_sale"]["enable"]:
-        buff_auto_on_sale = BuffAutoOnSale(logger, steam_client, steam_client_mutex, config)
-        plugins_enabled.append(buff_auto_on_sale)
-    if (
-        "uu_auto_accept_offer" in config
-        and "enable" in config["uu_auto_accept_offer"]
-        and config["uu_auto_accept_offer"]["enable"]
-    ):
-        uu_auto_accept_offer = UUAutoAcceptOffer(logger, steam_client, steam_client_mutex, config)
-        plugins_enabled.append(uu_auto_accept_offer)
     if (
         "steam_auto_accept_offer" in config
         and "enable" in config["steam_auto_accept_offer"]
@@ -233,9 +261,12 @@ def init_plugins_and_start(steam_client, steam_client_mutex):
     pause()
     sys.exit(exit_code.get())
 
+def exit_app(signal_, frame):
+    logger.info("aborting...")
+    sys.exit()
+
 def main():
     global config
-    # 初始化
     init_status = init_files_and_params()
     if init_status == 0:
         pause()
@@ -244,58 +275,25 @@ def main():
         pause()
         return 0
 
+    steam_client = None
+    steam_client = login_to_steam()
+    if steam_client is None:
+        return 1
+    steam_client_mutex = threading.Lock()
+    plugins_enabled = get_plugins_enabled(steam_client, steam_client_mutex)
+    plugins_check_status = plugins_check(plugins_enabled)
+    if plugins_check_status == 0:
+        logger.info("Please fill the config file as prompt shown in README!")
+        pause()
+        return 1
 
-def init_files_and_params() -> int:
-    global config
-    development_mode = False
-    logger.info("Initializing...")
-    first_run = False
-    if not os.path.exists(CONFIG_FOLDER):
-        os.mkdir(CONFIG_FOLDER)
-    if not os.path.exists(CONFIG_FILE_PATH):
-        with open(CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
-            f.write(DEFAULT_CONFIG_JSON)
-        logger.info("First run detected, generated" + CONFIG_FILE_PATH + ", fill in the config according to README! ")
-        first_run = True
-    else:
-        with open(CONFIG_FILE_PATH, "r", encoding=get_encoding(CONFIG_FILE_PATH)) as f:
-            try:
-                config = json.load(f)
-            except (json.Json5DecoderException, json.Json5IllegalCharacter) as e:
-                handle_caught_exception(e)
-                logger.error("Detect" + CONFIG_FILE_PATH + "format error, please check whether the config is correct! ")
-                return 0
-    if not os.path.exists(STEAM_ACCOUNT_INFO_FILE_PATH):
-        with open(STEAM_ACCOUNT_INFO_FILE_PATH, "w", encoding="utf-8") as f:
-            f.write(DEFAULT_STEAM_ACCOUNT_JSON)
-            logger.info("First run detected, generated" + STEAM_ACCOUNT_INFO_FILE_PATH + ", fill in the config according to README! ")
-            first_run = True
+    if steam_client is not None:
+        init_plugins_and_start(steam_client, steam_client_mutex)
 
-    if not first_run:
-        if "no_pause" in config:
-            set_no_pause(config["no_pause"])
-        if "development_mode" not in config:
-            config["development_mode"] = False
-        if "steam_login_ignore_ssl_error" not in config:
-            config["steam_login_ignore_ssl_error"] = False
-        if "steam_local_accelerate" not in config:
-            config["steam_local_accelerate"] = False
-        if "development_mode" in config and config["development_mode"]:
-            development_mode = True
-        if development_mode:
-            logger.info("Development mode is on")
-
-def exit_app(signal_, frame):
-    logger.info("aborting...")
-    sys.exit()
-
-def handle_global_exception(exc_type, exc_value, exc_traceback):
-    logger.exception(
-        "Error occurred,please report",
-        exc_info=(exc_type, exc_value, exc_traceback),
-    )
-    logger.error("The program is about to exit due to a error")
+    logger.info("All functions are shutdown, program will shutdown automatically...")
     pause()
+    sys.exit(exit_code.get())
+
 
 if __name__ == "__main__":
     sys.excepthook = handle_global_exception

@@ -8,3 +8,5 @@ chardet
 rsa
 qrcode[pil]
 qrcode_terminal
+pandas
+numpy

@@ -309,7 +309,3 @@ if __name__ == "__main__":
         sys.exit(exit_code.get())
     else:
         sys.exit()
-
-def exit_app(signal_, frame):
-    logger.info("aborting...")
-    sys.exit()

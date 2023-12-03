@@ -20,8 +20,6 @@ from utils.static import (
     DEV_FILE_FOLDER,
     SESSION_FOLDER,
     STEAM_ACCOUNT_INFO_FILE_PATH,
-    UU_TOKEN_FILE_PATH,
-    UU_ARG_FILE_PATH,
     DEFAULT_CONFIG_JSON,
     set_no_pause,
 )
@@ -237,8 +235,6 @@ def init_plugins_and_start(steam_client, steam_client_mutex):
             thread.join()
     if exit_code.get() != 0:
         logger.warning("All plugins have quit! This is not a normal situation, please check the configuration file.")
-
-
 
     steam_client = login_to_steam()
 
